@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reflex-xtermjs"
+version = "0.1.0"
+description = "xterm.js terminal emulator as a Reflex custom component, with addons and an optional PTY WebSocket backend."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Ernesto Crespo", email = "ecrespo@gmail.com" }]
+keywords = [
+    "reflex",
+    "reflex-custom-components",
+    "xterm",
+    "xterm.js",
+    "terminal",
+    "pty",
+    "console",
+]
+
+dependencies = ["reflex>=0.9.0"]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Reflex",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: User Interfaces",
+    "Topic :: Terminals :: Terminal Emulators/X Terminals",
+]
+
+[project.urls]
+Homepage = "https://github.com/ecrespo/reflex-xtermjs"
+Source = "https://github.com/ecrespo/reflex-xtermjs"
+Issues = "https://github.com/ecrespo/reflex-xtermjs/issues"
+Changelog = "https://github.com/ecrespo/reflex-xtermjs/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = ["build", "twine", "pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["custom_components"]
+
+[tool.setuptools.package-data]
+reflex_xtermjs = ["*.jsx", "*.css", "*.pyi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["*.pyi", "scripts/preflight_check.py"]
+
+[tool.ruff.lint]
+# RUF012: Reflex component and State classes declare mutable class-level
+# defaults by design; they are turned into per-instance fields by the
+# framework, not shared.
+ignore = ["RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+# The demo shell deliberately prints the server's local wall-clock time.
+"xtermjs_demo/**" = ["DTZ005"]

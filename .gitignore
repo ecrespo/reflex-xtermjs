@@ -216,3 +216,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# reflex-xtermjs
+.devcache/
+uv.lock
+*.db
+
+# Reflex build output
+.web/
+xtermjs_demo/.web/
+custom_components/*.egg-info/
+
+# Symlinks rx.asset(shared=True) drops next to whatever imported the component
+assets/external/
+xtermjs_demo/assets/external/
+
+# Written by `reflex init`, not part of this project
+xtermjs_demo/AGENTS.md
+xtermjs_demo/CLAUDE.md
+
+# IDE
+.idea/
