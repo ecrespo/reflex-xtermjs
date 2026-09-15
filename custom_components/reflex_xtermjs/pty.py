@@ -39,6 +39,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import fcntl
+import hmac
 import json
 import logging
 import os
@@ -49,6 +50,7 @@ import struct
 import termios
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 __all__ = ["PtyConfig", "PtySession", "pty_app", "pty_websocket_endpoint"]
 
@@ -81,6 +83,9 @@ class PtyConfig:
             is ``None`` only loopback clients are accepted.
         max_sessions: Refuse new connections beyond this many live shells.
         allow_remote: Accept non-loopback clients. Requires ``token``.
+        allowed_origins: Browser origins (``scheme://host[:port]``) allowed to
+            open the socket in addition to pages served from the same host.
+            Guards against cross-site WebSocket hijacking.
     """
 
     command: str = field(default_factory=_default_shell)
@@ -94,6 +99,7 @@ class PtyConfig:
     token: str | None = None
     max_sessions: int = 8
     allow_remote: bool = False
+    allowed_origins: tuple[str, ...] = ()
 
     def child_env(self) -> dict[str, str]:
         """Build the environment handed to the child process."""
@@ -160,17 +166,41 @@ class PtySession:
             self.fd = None
 
 
+def _origin_allowed(websocket: Any, config: PtyConfig) -> bool:
+    """Reject browser pages from foreign sites.
+
+    Browsers do not apply the same-origin policy to WebSockets, so without this
+    check any website the user visits could open a shell on a localhost backend.
+    Clients that send no ``Origin`` (non-browser tools) are left to the token and
+    loopback checks.
+    """
+    headers = getattr(websocket, "headers", None) or {}
+    origin = headers.get("origin")
+    if not origin:
+        return True
+    if origin.rstrip("/") in {o.rstrip("/") for o in config.allowed_origins}:
+        return True
+    origin_host = urlsplit(origin).hostname
+    request_host = urlsplit(f"//{headers.get('host', '')}").hostname
+    return origin_host is not None and origin_host == request_host
+
+
 def _authorize(websocket: Any, config: PtyConfig, live: int) -> str | None:
     """Return a rejection reason, or ``None`` when the client may connect."""
     if live >= config.max_sessions:
         return "too many terminal sessions"
+
+    if not _origin_allowed(websocket, config):
+        return "origin not allowed"
 
     client_host = getattr(getattr(websocket, "client", None), "host", None)
     is_local = client_host in _LOCAL_HOSTS
 
     if config.token is not None:
         supplied = websocket.query_params.get("token")
-        if supplied != config.token:
+        if supplied is None or not hmac.compare_digest(
+            supplied.encode("utf-8"), config.token.encode("utf-8")
+        ):
             return "invalid token"
         if not is_local and not config.allow_remote:
             return "remote connections are disabled"
@@ -214,7 +244,9 @@ def pty_websocket_endpoint(config: PtyConfig | None = None):
         loop = asyncio.get_running_loop()
         finished: asyncio.Future[None] = loop.create_future()
         fd = session.fd
-        assert fd is not None
+        if fd is None:  # spawn() always sets it; keep the type checker honest
+            await websocket.close(code=1011, reason="could not start a terminal")
+            return
 
         def on_readable() -> None:
             """Pump PTY output to the browser."""
@@ -288,7 +320,8 @@ def _handle_control(session: PtySession, text: str) -> bool:
     if kind not in _CONTROL_TYPES:
         return False
     if kind == "resize":
-        session.resize(message.get("cols", 80), message.get("rows", 24))
+        with contextlib.suppress(TypeError, ValueError, OverflowError):
+            session.resize(message.get("cols", 80), message.get("rows", 24))
     return True
 
 

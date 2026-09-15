@@ -185,6 +185,7 @@ class State(rx.State):
     def save(self, value: str):
         self.transcript = value
 
+
 rx.button("Save transcript", on_click=term.serialize(callback=State.save))
 ```
 
@@ -231,7 +232,7 @@ xterm(
 ```
 
 `PtyConfig` takes `command`, `args`, `cwd`, `env`, `term`, `cols`, `rows`,
-`path`, `token`, `max_sessions` and `allow_remote`.
+`path`, `token`, `max_sessions`, `allow_remote` and `allowed_origins`.
 
 On the wire it is the plain `addon-attach` protocol - raw bytes both ways - plus
 one control frame the component sends whenever the terminal is resized:
@@ -248,7 +249,11 @@ those frames.
 > **Security.** A PTY endpoint hands whoever reaches it a shell with the
 > backend's privileges, with no sandbox. The defaults are deliberately tight:
 > without a `token` only loopback clients are accepted, and even with a token
-> remote clients need `allow_remote=True`. Run the backend as an unprivileged
+> remote clients need `allow_remote=True`. Browser connections are also
+> checked against their `Origin`: only pages served from the same hostname as
+> the backend, or listed in `allowed_origins`, may open a shell - this blocks
+> cross-site WebSocket hijacking of a localhost terminal. Behind a reverse proxy
+> every client looks local, so always set a `token` there. Run the backend as an unprivileged
 > user, in a container, on a network you trust - or restrict `command` to a
 > single program instead of a login shell.
 

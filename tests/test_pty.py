@@ -130,3 +130,36 @@ def test_session_round_trip():
     finally:
         session.close()
     assert session.fd is None
+
+
+class FakeBrowserSocket(FakeWebSocket):
+    def __init__(self, origin: str | None, host: str = "localhost:8000", **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.headers = {"host": host}
+        if origin is not None:
+            self.headers["origin"] = origin
+
+
+def test_foreign_origins_are_refused():
+    """A random website cannot open a shell on a localhost backend."""
+    config = PtyConfig()
+    evil = FakeBrowserSocket("https://evil.example")
+    assert _authorize(evil, config, 0) == "origin not allowed"
+
+
+def test_same_host_and_listed_origins_are_accepted():
+    """The Reflex frontend (other port, same host) and allow-listed origins pass."""
+    config = PtyConfig(allowed_origins=("https://app.example/",))
+    assert _authorize(FakeBrowserSocket("http://localhost:3000"), config, 0) is None
+    assert _authorize(FakeBrowserSocket("https://app.example"), config, 0) is None
+    assert _authorize(FakeBrowserSocket(None), config, 0) is None
+
+
+def test_malformed_resize_frame_does_not_raise():
+    """Non-numeric geometry is swallowed instead of killing the session."""
+    session = PtySession(PtyConfig(command="/bin/sh", args=("-c", "sleep 1")))
+    session.spawn()
+    try:
+        assert _handle_control(session, '{"type": "resize", "cols": "wide", "rows": null}')
+    finally:
+        session.close()

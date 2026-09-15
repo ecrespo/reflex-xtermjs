@@ -32,6 +32,18 @@ First release.
 - Twelve built-in themes with `THEMES`, `THEME_NAMES` and `get_theme`.
 - `reflex_xtermjs.pty`: a reference PTY WebSocket backend with token auth,
   loopback-only defaults, a session cap and `TIOCSWINSZ` resize handling.
-- A four-page demo app and a 60-test suite.
+- A four-page demo app and a test suite.
+- CI workflows for code quality (ruff, pytest on Python 3.10-3.13, build and
+  `twine check`) and security (bandit, pip-audit, gitleaks, CodeQL,
+  dependency review), plus a tag-driven release workflow that publishes to
+  GitHub Releases and PyPI through Trusted Publishing.
+
+### Security
+
+- The PTY endpoint checks the WebSocket `Origin` header and refuses pages from
+  foreign hosts (new `allowed_origins` setting), closing a cross-site WebSocket
+  hijacking path to a localhost shell.
+- Tokens are compared in constant time (`hmac.compare_digest`).
+- A malformed `resize` control frame no longer aborts the session.
 
 [0.1.0]: https://github.com/ecrespo/reflex-xtermjs/releases/tag/v0.1.0
