@@ -9,6 +9,9 @@ and an optional PTY backend that gives the browser a real shell.
 pip install reflex-xtermjs
 ```
 
+Requires Python 3.11+ and Reflex 0.10 or newer (tested on Python 3.11-3.14
+with Reflex 0.10.0). Reflex 0.9.x users should stay on `reflex-xtermjs` 0.1.x.
+
 ## What you get
 
 - **The full terminal.** Every `ITerminalOptions` field from xterm.js 6 is a
@@ -302,8 +305,39 @@ Two official addons are deliberately left out of that set:
 ```bash
 uv pip install -e ".[dev]"
 uv run pytest                 # unit tests
-PYTHONPATH=. uv run reflex component build   # regenerate .pyi stubs, build dist/
+uvx ruff check . && uvx ruff format --check .
+uv build                      # sdist and wheel in dist/
 ```
+
+Reflex 0.10 removed the `reflex component` CLI. After changing a prop or an
+event trigger in `xtermjs.py`, regenerate the type stub with Reflex's stub
+generator, then format it:
+
+```bash
+PYTHONPATH=. uv run python -m reflex_base.utils.pyi_generator custom_components/reflex_xtermjs
+uvx ruff format custom_components/reflex_xtermjs/xtermjs.pyi
+```
+
+CI (`.github/workflows/quality.yml`) runs ruff, pytest on Python 3.11-3.14, a
+production build of the demo app on Node 24, and a wheel/sdist check;
+`security.yml` runs bandit, pip-audit, gitleaks, CodeQL and dependency review.
+
+## Releasing
+
+1. Bump `version` in `pyproject.toml` and `__version__` in
+   `custom_components/reflex_xtermjs/__init__.py`, and add a section to
+   `CHANGELOG.md`.
+2. Merge `develop` into `main` through a pull request.
+3. Tag `main` and push the tag:
+
+   ```bash
+   git checkout main && git pull
+   git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0
+   ```
+
+The `Release` workflow re-runs the quality gate, checks that the tag matches
+the package version, publishes to PyPI through Trusted Publishing and creates
+the GitHub release with the changelog notes.
 
 ## License
 
