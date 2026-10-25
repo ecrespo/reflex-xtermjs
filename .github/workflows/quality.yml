@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Run every JavaScript action on the Node 24 runtime (Node 20 is end-of-life
+# on GitHub-hosted runners), even if an action still declares an older one.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -23,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v10.1.0
+      - uses: astral-sh/setup-uv@v10.3.2
       - name: ruff check
         run: uvx ruff check --output-format=github .
       - name: ruff format
@@ -35,12 +40,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v10.1.0
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install package and dev extras
@@ -50,6 +55,27 @@ jobs:
       - name: pytest
         run: uv run --no-sync pytest -v
 
+  demo:
+    name: Demo app builds (Node 24)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          python-version: "3.12"
+      - name: Install package and demo requirements
+        run: |
+          uv venv
+          uv pip install -e . -r xtermjs_demo/requirements.txt
+      - name: Compile and build the production frontend
+        working-directory: xtermjs_demo
+        run: uv run --no-sync reflex export --frontend-only --no-zip
+
   build:
     name: Build and check distribution
     runs-on: ubuntu-latest
@@ -57,7 +83,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v10.1.0
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           python-version: "3.12"
       - name: Preflight (package metadata)

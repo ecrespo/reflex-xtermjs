@@ -157,7 +157,7 @@ def check_paths(root: Path, project: dict) -> None:
     if not cc.is_dir():
         warn(
             "no custom_components/ directory. That's fine for a non-standard "
-            "layout, but reflex component build/share expect it."
+            "layout, but the setuptools package discovery expects it."
         )
         return
     ok("custom_components/ directory present.")
@@ -165,7 +165,10 @@ def check_paths(root: Path, project: dict) -> None:
     pkg_dirs = [
         p
         for p in cc.iterdir()
-        if p.is_dir() and p.name.startswith("reflex_") and not p.name.startswith(".")
+        if p.is_dir()
+        and p.name.startswith("reflex_")
+        and not p.name.startswith(".")
+        and not p.name.endswith(".egg-info")
     ]
     if not pkg_dirs:
         fail("no reflex_<module>/ package found under custom_components/.")
@@ -189,7 +192,7 @@ def check_dist(root: Path, project: dict) -> None:
     dist = root / "dist"
     version = project.get("version", "")
     if not dist.is_dir():
-        warn("no dist/ yet. Run `uv run reflex component build` before publishing.")
+        warn("no dist/ yet. Run `uv build` before publishing.")
         return
     artifacts = list(dist.glob("*.whl")) + list(dist.glob("*.tar.gz"))
     if not artifacts:
